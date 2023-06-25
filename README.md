@@ -15,9 +15,11 @@ O sistema será composto pelos seguintes módulos:
 
 4. **Banco de Dados**: Este módulo será responsável por persistir todas as informações. Iremos utilizar o MongoDB.
 
-5. **Ferramenta de Visualização de Dados**: Este módulo será responsável pela visualização dos dados. Iremos usar o Grafana.
+5. **Ferramenta de Visualização de Dados**: Este módulo será responsável pela visualização dos dados. Vocês devem explorar e definir uma ferramenta para realizar a visualização.
 
 Esses módulos trabalharão em conjunto para fornecer uma visão holística da saúde das máquinas, permitindo intervenções oportunas e manutenção proativa.
+
+Este repostiório tem exemplos de código para implementação dos módulos em C++, assim como a utilização do mosquitto como MQTT Broker e o MongoDB como banco de dados. Porém, é apenas uma sugestão. Voces podem utilizar outras linguagens e softwares.
 
 
 ## SensorMonitor (Monitor de Sensores)
@@ -114,6 +116,21 @@ Os alarmes gerados pelo DataProcessor devem ser persistidos em uma coleção do 
 - `sensor_id` - string com nome do sensor que está sendo monitorado
 - `description` - string com uma descrição textual do alarme. 
  
-Para o alarme de inatividade, por exemplo, a descrição pode ser "Sensor inativo por dois períodos de tempo previstos".
+Para o alarme de inatividade, por exemplo, a descrição pode ser "Sensor inativo por dez períodos de tempo previstos".
 
 Ao projetar e implementar o módulo DataProcessor, lembre-se de que ele precisa ser capaz de processar dados de múltiplas máquinas e sensores simultaneamente, de modo a não perder ou atrasar a leitura de mensagens de qualquer tópico. Isso pode exigir o uso de técnicas de programação concorrente ou assíncrona.
+
+## Banco de Dados
+
+Como mencionado, o repositório utiliza o MongoDB como banco de dados. Lembre-se que isso é apenas uma sugestão, vocês podem utilizar outro banco de dados a sua escolha.
+
+O repositório já tem uma extensão do Mongo para Visual Studio Code pre definida no devcontainer.
+
+Para acessar o Mongo e visualizar os dados persistidos, realize os seguintes passos:
+
+1. Clique no ícone de uma folha na barra lateral esquerda
+2. Clique em `Add connection`
+3. Clique em `Open Form` em `Advanced Connection Settings`
+4. Modifique o valor do campo `Hostname` para `db` e clique em `Connect`
+
+Se os passos forem executados com êxito, voce terá acesso a uma árvore de navegação das coleções do banco na aba lateral esquerda.
