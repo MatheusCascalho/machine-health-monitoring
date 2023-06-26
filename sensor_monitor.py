@@ -2,6 +2,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import json
+import multiprocessing
 import psutil
 from paho.mqtt.client import Client
 import time
@@ -47,7 +48,7 @@ def get_time():
 def publish_cpu(client: Client):
     cpu = psutil.cpu_percent()
     timestamp = get_time()
-    # time.sleep(5)
+    time.sleep(1)
     data = {
         "timestamp": timestamp,
         "value": cpu
@@ -98,11 +99,14 @@ def loop_ram(client: Client, period):
 
 
 async def sensor_loop(client: Client, period):
-    # asyncio.create_task(loop_ram(client=client, period=period))
-    # asyncio.create_task(loop(publisher=publish_cpu, client=client, period=period))
-    pool = ThreadPoolExecutor()
-    pool.submit(loop_cpu(client=client, period=period))
-    pool.submit(loop_ram(client=client, period=period))
+    process1 = multiprocessing.Process(target=loop_ram, args=(client, period))
+    process2 = multiprocessing.Process(target=loop_cpu, args=(client, period))
+
+    process1.start()
+    process2.start()
+
+    process1.join()
+    process2.join()
     await asyncio.sleep(float('inf'))
 
 
