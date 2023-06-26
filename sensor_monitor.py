@@ -1,8 +1,10 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import json
 import psutil
 from paho.mqtt.client import Client
+import time
 import uuid
 
 QOS = 1
@@ -42,9 +44,10 @@ def get_time():
     return str(datetime.now().isoformat())
 
 
-async def publish_cpu(client: Client):
+def publish_cpu(client: Client):
     cpu = psutil.cpu_percent()
     timestamp = get_time()
+    # time.sleep(5)
     data = {
         "timestamp": timestamp,
         "value": cpu
@@ -52,10 +55,13 @@ async def publish_cpu(client: Client):
     data = json.dumps(data)
     machine_id = get_machine_id()
     topic = f"/sensors/{machine_id}/cpu_percent"
-    client.publish(topic=topic, payload=data)
+    print(f"Publicando a mensagem de CPU: {data}")
+    client.publish(topic=topic, payload=data, qos=QOS)
+    print("Mensagem Publicada!!")
+    return "OK - CPU"
 
 
-async def publish_memory(client: Client):
+def publish_memory(client: Client):
     memory = psutil.virtual_memory()[2]
     timestamp = get_time()
     data = {
@@ -65,21 +71,39 @@ async def publish_memory(client: Client):
     data = json.dumps(data)
     machine_id = get_machine_id()
     topic = f"/sensors/{machine_id}/memory_percent"
-    client.publish(topic=topic, payload=data)
+    print(f"Publicando a mensagem de RAM: {data}")
+    client.publish(topic=topic, payload=data, qos=QOS)
+    print("Mensagem Publicada!!")
+    return "OK - RAM"
 
 
-async def read_sensors(client: Client):
-    tasks = [
-        asyncio.create_task(publish_cpu(client)),
-        asyncio.create_task(publish_memory(client))
-    ]
-    await asyncio.gather(*tasks)
+async def loop(publisher: callable, client: Client, period):
+    while True:
+        publisher(client)
+        await asyncio.sleep(period)
+
+
+def loop_cpu(client: Client, period):
+    while True:
+        publish_cpu(client)
+        time.sleep(period)
+        # await asyncio.sleep(period)
+
+
+def loop_ram(client: Client, period):
+    while True:
+        publish_memory(client)
+        time.sleep(period)
+        # await asyncio.sleep(period)
 
 
 async def sensor_loop(client: Client, period):
-    while True:
-        asyncio.run(read_sensors(client))
-        await asyncio.sleep(period)
+    # asyncio.create_task(loop_ram(client=client, period=period))
+    # asyncio.create_task(loop(publisher=publish_cpu, client=client, period=period))
+    pool = ThreadPoolExecutor()
+    pool.submit(loop_cpu(client=client, period=period))
+    pool.submit(loop_ram(client=client, period=period))
+    await asyncio.sleep(float('inf'))
 
 
 async def publish_identifier(client: Client, period):
@@ -101,12 +125,14 @@ async def publish_identifier(client: Client, period):
     }
     data = json.dumps(data)
     topic = "/sensor_monitors"
-    client.publish(topic=topic, payload=data)
+    print(f"Publicando a mensagem: {data}")
+    client.publish(topic=topic, payload=data, qos=QOS)
+    print("mensagem publicada!")
 
 
 async def identifier_loop(client: Client, period: float):
     while True:
-        asyncio.run(publish_identifier(client=client, period=period))
+        await publish_identifier(client=client, period=period)
         await asyncio.sleep(period)
 
 
@@ -116,11 +142,11 @@ def get_machine_id():
 
 
 def main():
-    sensor_period = 1
-    identifier_period = 5
+    sensor_period = .5
+    identifier_period = .5
     client = set_client()
-    sensor_loop(client=client, period=sensor_period)
-    identifier_loop(client=client, period=identifier_period)
+    asyncio.run(sensor_loop(client=client, period=sensor_period))
+    # asyncio.run(identifier_loop(client=client, period=identifier_period))
 
 
 if __name__ == "__main__":
