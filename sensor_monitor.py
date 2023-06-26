@@ -8,7 +8,8 @@ import uuid
 QOS = 1
 BROKER_PORT = 1883
 BROKER_URI = "localhost"
-BROKER_ADDRESS = "tcp://localhost:1883"
+BROKER_HOST = f"tcp://{BROKER_URI}"
+BROKER_ADDRESS = f"{BROKER_HOST}:{BROKER_PORT}"
 
 
 # Callback functions to deal with MQTT events
@@ -33,6 +34,7 @@ def set_client() -> Client:
     client.on_publish = on_publish
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
+    client.connect(host=BROKER_URI, port=BROKER_PORT)
     return client
 
 
