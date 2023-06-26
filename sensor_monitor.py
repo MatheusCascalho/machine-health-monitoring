@@ -78,29 +78,15 @@ def publish_memory(client: Client):
     return "OK - RAM"
 
 
-async def loop(publisher: callable, client: Client, period):
+def loop(publisher: callable, client: Client, period):
     while True:
         publisher(client)
-        await asyncio.sleep(period)
-
-
-def loop_cpu(client: Client, period):
-    while True:
-        publish_cpu(client)
         time.sleep(period)
-        # await asyncio.sleep(period)
-
-
-def loop_ram(client: Client, period):
-    while True:
-        publish_memory(client)
-        time.sleep(period)
-        # await asyncio.sleep(period)
 
 
 async def sensor_loop(client: Client, period):
-    process1 = multiprocessing.Process(target=loop_ram, args=(client, period))
-    process2 = multiprocessing.Process(target=loop_cpu, args=(client, period))
+    process1 = multiprocessing.Process(target=loop, args=(publish_cpu, client, period))
+    process2 = multiprocessing.Process(target=loop, args=(publish_memory, client, period))
 
     process1.start()
     process2.start()
@@ -150,7 +136,7 @@ def main():
     identifier_period = .5
     client = set_client()
     asyncio.run(sensor_loop(client=client, period=sensor_period))
-    # asyncio.run(identifier_loop(client=client, period=identifier_period))
+    asyncio.run(identifier_loop(client=client, period=identifier_period))
 
 
 if __name__ == "__main__":
