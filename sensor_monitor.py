@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import json
@@ -48,7 +49,6 @@ def get_time():
 def publish_cpu(client: Client):
     cpu = psutil.cpu_percent()
     timestamp = get_time()
-    time.sleep(1)
     data = {
         "timestamp": timestamp,
         "value": cpu
@@ -84,7 +84,7 @@ def loop(publisher: callable, client: Client, period):
         time.sleep(period)
 
 
-async def sensor_loop(client: Client, period):
+def sensor_loop(client: Client, period):
     process1 = multiprocessing.Process(target=loop, args=(publish_cpu, client, period))
     process2 = multiprocessing.Process(target=loop, args=(publish_memory, client, period))
 
@@ -93,10 +93,9 @@ async def sensor_loop(client: Client, period):
 
     process1.join()
     process2.join()
-    await asyncio.sleep(float('inf'))
 
 
-async def publish_identifier(client: Client, period):
+def publish_identifier(client: Client, period):
     machine_id = get_machine_id()
     data = {
         "machine_id": machine_id,
@@ -117,13 +116,13 @@ async def publish_identifier(client: Client, period):
     topic = "/sensor_monitors"
     print(f"Publicando a mensagem: {data}")
     client.publish(topic=topic, payload=data, qos=QOS)
-    print("mensagem publicada!")
+    print("mensagem publicada - Identificação do sensor!")
 
 
-async def identifier_loop(client: Client, period: float):
+def identifier_loop(client: Client, period: float):
     while True:
-        await publish_identifier(client=client, period=period)
-        await asyncio.sleep(period)
+        publish_identifier(client=client, period=period)
+        time.sleep(period)
 
 
 def get_machine_id():
@@ -132,11 +131,18 @@ def get_machine_id():
 
 
 def main():
-    sensor_period = .5
+    sensor_period = 5
     identifier_period = .5
     client = set_client()
-    asyncio.run(sensor_loop(client=client, period=sensor_period))
-    asyncio.run(identifier_loop(client=client, period=identifier_period))
+    p1 = multiprocessing.Process(target=sensor_loop, args=(client, sensor_period))
+    p2 = multiprocessing.Process(target=identifier_loop, args=(client, identifier_period))
+
+    p1.start()
+    p2.start()
+
+    p1.join()
+    p2.join()
+
 
 
 if __name__ == "__main__":
