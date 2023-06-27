@@ -18,7 +18,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
       libssl-dev \
       doxygen \
       graphviz \
+      python3 \
+      python3-pip \
       && rm -rf /var/lib/apt/lists/*
+
+RUN python -m pip install -r requirements.txt
 
 # Go back to parent directory
 WORKDIR /
