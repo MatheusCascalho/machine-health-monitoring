@@ -4,9 +4,13 @@ from datetime import datetime
 from bson import ObjectId
 from bson.json_util import dumps
 from pymongo import MongoClient
+import json
 
 QOS = 1
-BROKER_ADDRESS = "localhost"
+BROKER_PORT = 1883
+BROKER_URI = "localhost"
+BROKER_HOST = f"tcp://{BROKER_URI}"
+BROKER_ADDRESS = f"{BROKER_HOST}:{BROKER_PORT}"
 MONGO_DB_URL = "mongodb://localhost:27017"
 MONGO_DB_NAME = "sensors_data"
 
