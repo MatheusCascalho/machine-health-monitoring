@@ -131,8 +131,12 @@ def get_machine_id():
 
 
 def main():
-    sensor_period = 5
-    identifier_period = .5
+    with open("settings.json", "r") as file:
+        settings = json.load(file)
+
+    sensor_period = settings.get("sensor_period", 1)
+    identifier_period = settings.get("identifier_period", 1)
+    
     client = set_client()
     p1 = multiprocessing.Process(target=sensor_loop, args=(client, sensor_period))
     p2 = multiprocessing.Process(target=identifier_loop, args=(client, identifier_period))
