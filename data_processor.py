@@ -68,9 +68,9 @@ def main():
     client.on_message = callback
 
     try:
-        client.connect(BROKER_ADDRESS)
+        client.connect(host=BROKER_URI, port=BROKER_PORT)
         client.subscribe("/sensors/#", QOS)
-    except mqtt.MQTTException as e:
+    except Exception as e:
         print(f"Error: {str(e)}")
         return
 
