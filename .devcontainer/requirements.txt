@@ -1,0 +1,4 @@
+pymongo==3.11.4
+paho-mqtt==1.6.1
+psutil==5.9.5
+bson==0.5.10

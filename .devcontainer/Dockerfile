@@ -25,6 +25,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 # Go back to parent directory
 WORKDIR /
 
+# Copy source code
+COPY . ./
+
+RUN pip3 install -r requirements.txt
+
 # Clone the Paho MQTT C library
 RUN git clone https://github.com/eclipse/paho.mqtt.c.git
 WORKDIR /paho.mqtt.c
