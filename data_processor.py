@@ -39,6 +39,20 @@ def insert_db(machine_id, sensor_id, timestamp, value):
     except Exception as e:
         print(f"Failed to insert doc: {e}")
 
+def alarm(machine_id, sensor_id):
+    client = MongoClient(MONGO_DB_URL)
+    db = client[MONGO_DB_NAME]
+    collection = db['alarms']
+    doc = {
+        "machine_id": machine_id,
+        "sensor_id": sensor_id,
+        "description": "Sensor inativo por dez períodos de tempo previstos" 
+    }
+    try:
+        collection.insert_one(doc)
+    except Exception as e:
+        print(f"Failed to insert doc: {e}")
+
 # Callback para quando o cliente se conecta ao broker MQTT
 def on_connect(client, userdata, flags, rc):
     print("Conectado ao broker MQTT. Código de resultado: " + str(rc))
@@ -50,6 +64,8 @@ def on_message(client, userdata, msg):
     # Exiba o tópico e o conteúdo da mensagem recebida
     print("Tópico: " + msg.topic)
     print("Conteúdo: " + msg.payload.decode())
+    count = threading.active_count()
+    print(f"Total de threads vivas: {count}")
     # Obtém o tópico e a mensagem recebida
     topico = msg.topic
     mensagem = msg.payload.decode("utf-8")
@@ -82,7 +98,7 @@ client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect("localhost", 1883, 60)
+client.connect("localhost", 1883, 120)
 
 #loop para manter a conexão com o broker MQTT e processar as mensagens recebidas
 client.loop_forever()
