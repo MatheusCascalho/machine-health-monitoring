@@ -3,9 +3,14 @@ from pymongo import MongoClient
 import threading
 import json
 
+MONGO_DB_URL = "mongodb://localhost:27017"
+MONGO_DB_NAME = "sensors_data"
+
 # Lista para armazenar as threads criadas
 threads = []
 machines_listening = []
+
+machine_id = 0
 
 def split_string(string, delimiter):
     parts = string.split(delimiter)
@@ -20,14 +25,19 @@ def subscribe_process(machine_id, mensagem):
         data_interval = sensor['data_interval']
         client.subscribe(f"/sensors/{machine_id}/{sensor_id}")
 
-def insert_db(machine_id, sensor_id, timestemp, value):
-    print('insert db \n')
-
-
-def data_analize(topico, mensagem):
-    token = split_string(topico, '/')
-    print(f"{token[2]}:\n")
-    parse_msg = json.loads(mensagem)
+def insert_db(machine_id, sensor_id, timestamp, value):
+    client = MongoClient(MONGO_DB_URL)
+    db = client[MONGO_DB_NAME]
+    collection = db[sensor_id]
+    doc = {
+        "machine_id": machine_id,
+        "timestamp": timestamp,
+        "value": value
+    }
+    try:
+        collection.insert_one(doc)
+    except Exception as e:
+        print(f"Failed to insert doc: {e}")
 
 # Callback para quando o cliente se conecta ao broker MQTT
 def on_connect(client, userdata, flags, rc):
@@ -45,8 +55,8 @@ def on_message(client, userdata, msg):
     mensagem = msg.payload.decode("utf-8")
     if topico == '/sensor_monitors':
         data_rec = json.loads(mensagem)
+        global machine_id 
         machine_id = data_rec['machine_id']
-    
         if machine_id not in machines_listening:
             machines_listening.append(machine_id)
             print(f"ID maquina: {machine_id}\n")
@@ -57,20 +67,24 @@ def on_message(client, userdata, msg):
             threads.append(thread)
 
     else:
-        print('sensors\n')
+        token = split_string(topico, '/')
+        print(f"token: {token}\n")
+        parse_msg = json.loads(mensagem)
+        timestamp = parse_msg['timestamp']
+        value = parse_msg['value']
+        insert_db(machine_id, token[3], timestamp, value)
         
 
 # Configuração do cliente MQTT
 client = mqtt.Client()
 
-# Defina as funções de callback
+#funções de callback
 client.on_connect = on_connect
 client.on_message = on_message
 
-# Conecte-se ao broker MQTT
 client.connect("localhost", 1883, 60)
 
-# Inicie o loop para manter a conexão com o broker MQTT e processar as mensagens recebidas
+#loop para manter a conexão com o broker MQTT e processar as mensagens recebidas
 client.loop_forever()
 
 # Aguarda a finalização de todas as threads
