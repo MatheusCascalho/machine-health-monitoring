@@ -1,90 +1,78 @@
-import time
 import paho.mqtt.client as mqtt
-from datetime import datetime
-from bson import ObjectId
-from bson.json_util import dumps
 from pymongo import MongoClient
+import threading
 import json
 
-QOS = 1
-BROKER_PORT = 1883
-BROKER_URI = "localhost"
-BROKER_HOST = f"tcp://{BROKER_URI}"
-BROKER_ADDRESS = f"{BROKER_HOST}:{BROKER_PORT}"
-MONGO_DB_URL = "mongodb://localhost:27017"
-MONGO_DB_NAME = "sensors_data"
+# Lista para armazenar as threads criadas
+threads = []
+machines_listening = []
+
+def split_string(string, delimiter):
+    parts = string.split(delimiter)
+    return parts
+
+def subscribe_process(machine_id, mensagem):
+    print(f"Mensagem recebida no tópico: {mensagem}")
+    parser_msg = json.loads(mensagem)
+    sensors = parser_msg['sensors']
+    for sensor in sensors:
+        sensor_id = sensor['sensor_id']
+        data_interval = sensor['data_interval']
+        client.subscribe(f"/sensors/{machine_id}/{sensor_id}")
+
+def insert_db(machine_id, sensor_id, timestemp, value):
+    print('insert db \n')
 
 
-def insert_document(collection, machine_id, timestamp_str, value):
-    timestamp = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%SZ")
-    timestamp_timestamp = int(time.mktime(timestamp.timetuple()))
+def data_analize(topico, mensagem):
+    token = split_string(topico, '/')
+    print(f"{token[2]}:\n")
+    parse_msg = json.loads(mensagem)
 
-    doc = {
-        "machine_id": machine_id,
-        "timestamp": timestamp_timestamp,
-        "value": value
-    }
+# Callback para quando o cliente se conecta ao broker MQTT
+def on_connect(client, userdata, flags, rc):
+    print("Conectado ao broker MQTT. Código de resultado: " + str(rc))
+    # Inscreva-se no tópico desejado quando estiver conectado
+    client.subscribe("/sensor_monitors")
 
-    try:
-        collection.insert_one(doc)
-    except Exception as e:
-        print(f"Failed to insert doc: {e}")
+# Callback para quando uma nova mensagem é recebida em um tópico inscrito
+def on_message(client, userdata, msg):
+    # Exiba o tópico e o conteúdo da mensagem recebida
+    print("Tópico: " + msg.topic)
+    print("Conteúdo: " + msg.payload.decode())
+    # Obtém o tópico e a mensagem recebida
+    topico = msg.topic
+    mensagem = msg.payload.decode("utf-8")
+    if topico == '/sensor_monitors':
+        data_rec = json.loads(mensagem)
+        machine_id = data_rec['machine_id']
+    
+        if machine_id not in machines_listening:
+            machines_listening.append(machine_id)
+            print(f"ID maquina: {machine_id}\n")
+            # Cria uma nova thread para processar a mensagem
+            thread = threading.Thread(target=subscribe_process, args=(machine_id, mensagem))
+            thread.start()
+            # Adiciona a thread à lista de threads
+            threads.append(thread)
 
+    else:
+        print('sensors\n')
+        
 
-def split_string(string, delim):
-    return string.split(delim)
+# Configuração do cliente MQTT
+client = mqtt.Client()
 
+# Defina as funções de callback
+client.on_connect = on_connect
+client.on_message = on_message
 
-def on_message(client, userdata, message):
-    payload = message.payload.decode("utf-8")
-    data = dumps(payload)
-    j = json.loads(data)
+# Conecte-se ao broker MQTT
+client.connect("localhost", 1883, 60)
 
-    topic = message.topic
-    topic_parts = split_string(topic, '/')
-    machine_id = topic_parts[2]
-    sensor_id = topic_parts[3]
+# Inicie o loop para manter a conexão com o broker MQTT e processar as mensagens recebidas
+client.loop_forever()
 
-    timestamp = j["timestamp"]
-    value = j["value"]
-
-    client = MongoClient(MONGO_DB_URL)
-    db = client[MONGO_DB_NAME]
-    collection = db[sensor_id]
-
-    insert_document(collection, machine_id, timestamp, value)
-
-
-def main():
-    client_id = "clientId"
-    client = mqtt.Client(client_id=client_id)
-
-    mongodb_client = MongoClient(MONGO_DB_URL)
-    database = mongodb_client[MONGO_DB_NAME]
-
-    callback = on_message
-    callback.db = database
-
-    client.on_message = callback
-
-    try:
-        client.connect(host=BROKER_URI, port=BROKER_PORT)
-        client.subscribe("/sensors/#", QOS)
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return
-
-    try:
-        while True:
-            client.loop()
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        client.disconnect()
-
-        mongodb_client.close()
-
-
-if __name__ == "__main__":
-    main()
+# Aguarda a finalização de todas as threads
+for thread in threads:
+    thread.join()
