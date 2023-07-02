@@ -43,7 +43,7 @@ def set_client() -> Client:
 
 
 def get_time():
-    return str(datetime.now().isoformat())
+    return str(datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"))
 
 
 def publish_cpu(client: Client):
