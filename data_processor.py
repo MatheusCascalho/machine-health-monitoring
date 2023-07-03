@@ -23,7 +23,7 @@ def subscribe_process(machine_id, mensagem):
     for sensor in sensors:
         sensor_id = sensor['sensor_id']
         data_interval = sensor['data_interval']
-        client.subscribe(f"/sensors/{machine_id}/{sensor_id}")
+        client.subscribe(f"/sensors/{machine_id}/{sensor_id}", qos=1)
 
 def insert_db(machine_id, sensor_id, timestamp, value):
     client = MongoClient(MONGO_DB_URL)
@@ -58,6 +58,7 @@ def on_connect(client, userdata, flags, rc):
     print("Conectado ao broker MQTT. Código de resultado: " + str(rc))
     # Inscreva-se no tópico desejado quando estiver conectado
     client.subscribe("/sensor_monitors")
+    #client.subscribe("/sensors/#")
 
 # Callback para quando uma nova mensagem é recebida em um tópico inscrito
 def on_message(client, userdata, msg):
@@ -84,7 +85,7 @@ def on_message(client, userdata, msg):
 
     else:
         token = split_string(topico, '/')
-        print(f"token: {token}\n")
+        #print(f"token: {token}\n")
         parse_msg = json.loads(mensagem)
         timestamp = parse_msg['timestamp']
         value = parse_msg['value']
@@ -92,7 +93,7 @@ def on_message(client, userdata, msg):
         
 
 # Configuração do cliente MQTT
-client = mqtt.Client()
+client = mqtt.Client(client_id= "data_processor")
 
 #funções de callback
 client.on_connect = on_connect
