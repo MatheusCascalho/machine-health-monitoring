@@ -83,6 +83,7 @@ def loop(publisher: callable, client: Client, period):
     while True:
         if counter == 20:
             client.reconnect()
+            counter = 0
         publisher(client)
         time.sleep(period)
         counter += 1
