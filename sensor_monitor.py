@@ -79,9 +79,13 @@ def publish_memory(client: Client):
 
 
 def loop(publisher: callable, client: Client, period):
+    counter = 0
     while True:
+        if counter == 20:
+            client.reconnect()
         publisher(client)
         time.sleep(period)
+        counter += 1
 
 
 def sensor_loop(client: Client, period):
@@ -146,7 +150,6 @@ def main():
 
     p1.join()
     p2.join()
-
 
 
 if __name__ == "__main__":
