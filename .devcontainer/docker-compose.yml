@@ -39,7 +39,7 @@ services:
     volumes:
       - gfstorage:/var/lib/grafana 
     ports:
-      - '3000:3000'
+      - 3000:3000
   
   # grafana:
   #   image: ajeje93/grafana-mongodb:latest
