@@ -28,6 +28,19 @@ services:
     # Add "forwardPorts": ["27017"] to **devcontainer.json** to forward MongoDB locally.
     # (Adding the "ports" property to this file will not forward from a Codespace.)
 
+  
+  grafana:
+    image: grafana/grafana-enterprise
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      GF_INSTALL_PLUGINS: "grafana-clock-panel, grafana-simple-json-datasource"
+      GF_LOG_LEVEL: debug
+    volumes:
+      - gfstorage:/var/lib/grafana 
+    ports:
+      - '3000:3000'
+  
   # grafana:
   #   image: ajeje93/grafana-mongodb:latest
   #   ports:
@@ -69,11 +82,12 @@ services:
     links:
       - postgres-db
       
-volumes:
-  grafana-data:
+#volumes:
+#  grafana-data:
 volumes:
   mongodb-data:
   metabase-data:
   pgdata:
   influxdb-data:
-  grafana-data:
+  gfstorage: {}
+  #grafana-data:
