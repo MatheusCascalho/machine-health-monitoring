@@ -123,7 +123,7 @@ def calcular_media_movel():
                 doc = {
                     "machine_id": machine_id,
                     "sensor_id": sensor_id,
-                    "media_movel": media,
+                    "value": media,
                     "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
                 }
                 try:
