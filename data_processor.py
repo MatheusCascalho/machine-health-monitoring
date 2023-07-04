@@ -10,8 +10,6 @@ MONGO_DB_NAME = "sensors_data"
 threads = []
 machines_listening = []
 
-machine_id = 0
-
 def split_string(string, delimiter):
     parts = string.split(delimiter)
     return parts
@@ -53,6 +51,7 @@ def alarm(machine_id, sensor_id):
     except Exception as e:
         print(f"Failed to insert doc: {e}")
 
+
 # Callback para quando o cliente se conecta ao broker MQTT
 def on_connect(client, userdata, flags, rc):
     print("Conectado ao broker MQTT. Código de resultado: " + str(rc))
@@ -72,7 +71,6 @@ def on_message(client, userdata, msg):
     mensagem = msg.payload.decode("utf-8")
     if topico == '/sensor_monitors':
         data_rec = json.loads(mensagem)
-        global machine_id 
         machine_id = data_rec['machine_id']
         if machine_id not in machines_listening:
             machines_listening.append(machine_id)
@@ -85,11 +83,10 @@ def on_message(client, userdata, msg):
 
     else:
         token = split_string(topico, '/')
-        #print(f"token: {token}\n")
         parse_msg = json.loads(mensagem)
         timestamp = parse_msg['timestamp']
         value = parse_msg['value']
-        insert_db(machine_id, token[3], timestamp, value)
+        insert_db(token[2], token[3], timestamp, value)
         
 
 # Configuração do cliente MQTT
