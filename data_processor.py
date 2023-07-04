@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 from pymongo import MongoClient
 import threading
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 
 MONGO_DB_URL = "mongodb://localhost:27017"
@@ -97,6 +97,55 @@ def on_message(client, userdata, msg):
                 insert_db(machine_id, sensor_id, timestamp, value)
                 machines_listening[machine_id][sensor_id]['timestamp'] = timestamp
 
+                current_time = datetime.now()
+                #current_time = current_time.strftime("%Y-%m-%dT%H:%M:%S")
+                sensor_time_iso = machines_listening[machine_id][sensor_id]['timestamp']
+                sensor_time = datetime.strptime(sensor_time_iso, "%Y-%m-%dT%H:%M:%SZ")
+                tempo_decorrido = current_time - sensor_time
+                # print(f"tempo atual: {current_time}\n")
+                # print(f"tempo sensor: {sensor_time}\n")
+                # print(f"tempo decorrido: {tempo_decorrido}\n")
+
+def monitora():
+    client = MongoClient(MONGO_DB_URL)
+    db = client[MONGO_DB_NAME]
+    
+    for machine_id, sensors in machines_listening.items():
+        print(f"dicionario {machine_id} {sensors}\n")
+        for sensor_id, sensor_data in sensors.items():
+            print(f"sensores {sensor_id} {sensor_data}\n")
+            collection = db[sensor_id]
+            print(f"colecao {collection}\n")
+            cursor = collection.find({
+                'machine_id': machine_id,
+            }).sort("timestamp", -1).limit(1)
+            
+            if cursor.count() > 0:
+                result = cursor[0]
+                last_timestamp = result['timestamp']
+                current_time = datetime.now()
+                sensor_time = datetime.strptime(last_timestamp, "%Y-%m-%dT%H:%M:%SZ")
+                elapsed_time = current_time - sensor_time
+                expected_interval = timedelta(milliseconds=sensor_data['data_interval'])
+                
+                if elapsed_time.total_seconds()/1000 > (10 * expected_interval.total_seconds()/1000):
+                    alarm(machine_id, sensor_id)
+                    print(f"Alarme gerado para a máquina {machine_id}, sensor {sensor_id}!")
+                else:
+                    print(f"Tempo decorrido para a máquina {machine_id}, sensor {sensor_id}: {elapsed_time}")
+            else:
+                print(f"Nenhum registro encontrado para a máquina {machine_id}, sensor {sensor_id}.\n")
+
+def monitorar_banco():
+    while True:
+        monitora()
+        time.sleep(1)  # Intervalo de verificação do banco de dado
+
+
+# Cria uma nova thread para monitorar o banco de dados e gerar alarmes
+monitor_thread = threading.Thread(target=monitorar_banco)
+monitor_thread.daemon = True  # Define a thread como daemon para encerrar junto com o programa principal
+monitor_thread.start()
 
 # Configuração do cliente MQTT
 client = mqtt.Client(client_id= "data_processor")
@@ -104,6 +153,8 @@ client = mqtt.Client(client_id= "data_processor")
 #funções de callback
 client.on_connect = on_connect
 client.on_message = on_message
+
+print(f"\nMonitoradas: {machines_listening}\n")
 
 client.connect("localhost", 1883, 120)
 
