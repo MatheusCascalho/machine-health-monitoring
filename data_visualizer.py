@@ -86,7 +86,13 @@ else:
 
 plt.xlabel('Timestamp')
 plt.ylabel('Value')
-plt.title(f"Coleção: {selected_collection} Machine ID: {selected_machine_id}")
-plt.legend()  # Mostra a legenda dos sensores e da média móvel
-plt.savefig('grafico'+selected_collection+' ' + str(machine_id) +'.png')
-plt.show()
+if selected_collection == 'media_movel':
+    plt.title(f"Coleção: {selected_collection} Machine ID: {selected_machine_id} Sensor ID: {selected_sensor}")
+    plt.legend()  # Mostra a legenda dos sensores e da média móvel
+    plt.savefig(selected_sensor+'_'+selected_collection+'_' + str(machine_id) +'.png')
+    plt.show()
+else:
+    plt.title(f"Coleção: {selected_collection} Machine ID: {selected_machine_id}")
+    plt.legend()  # Mostra a legenda dos sensores e da média móvel
+    plt.savefig(selected_collection+'_' + str(machine_id) +'.png')
+    plt.show()
