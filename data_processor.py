@@ -10,7 +10,10 @@ MONGO_DB_NAME = "sensors_data"
 
 # Lista para armazenar as threads criadas
 threads = []
+#dicionario para as maquinas monitoradas
 machines_listening = {}
+#dicionario para os sensores que dispararam alarme
+sensores_com_alarme = {}
 
 def split_string(string, delimiter):
     parts = string.split(delimiter)
@@ -44,18 +47,20 @@ def insert_db(machine_id, sensor_id, timestamp, value):
         print(f"Failed to insert doc: {e}")
 
 def alarm(machine_id, sensor_id):
-    client = MongoClient(MONGO_DB_URL)
-    db = client[MONGO_DB_NAME]
-    collection = db['alarms']
-    doc = {
-        "machine_id": machine_id,
-        "sensor_id": sensor_id,
-        "description": "Sensor inativo por dez períodos de tempo previstos" 
-    }
-    try:
-        collection.insert_one(doc)
-    except Exception as e:
-        print(f"Failed to insert doc: {e}")
+    if (machine_id, sensor_id) not in sensores_com_alarme:
+        client = MongoClient(MONGO_DB_URL)
+        db = client[MONGO_DB_NAME]
+        collection = db['alarms']
+        doc = {
+            "machine_id": machine_id,
+            "sensor_id": sensor_id,
+            "description": "Sensor inativo por dez períodos de tempo previstos" 
+        }
+        try:
+            collection.insert_one(doc)
+            sensores_com_alarme[(machine_id, sensor_id)] = True  # Marca o sensor como tendo acionado o alarme
+        except Exception as e:
+            print(f"Failed to insert doc: {e}")
 
 # Callback para quando o cliente se conecta ao broker MQTT
 def on_connect(client, userdata, flags, rc):
@@ -96,15 +101,6 @@ def on_message(client, userdata, msg):
             if machine_id in machines_listening:
                 insert_db(machine_id, sensor_id, timestamp, value)
                 machines_listening[machine_id][sensor_id]['timestamp'] = timestamp
-
-                current_time = datetime.now()
-                #current_time = current_time.strftime("%Y-%m-%dT%H:%M:%S")
-                sensor_time_iso = machines_listening[machine_id][sensor_id]['timestamp']
-                sensor_time = datetime.strptime(sensor_time_iso, "%Y-%m-%dT%H:%M:%SZ")
-                tempo_decorrido = current_time - sensor_time
-                # print(f"tempo atual: {current_time}\n")
-                # print(f"tempo sensor: {sensor_time}\n")
-                # print(f"tempo decorrido: {tempo_decorrido}\n")
 
 def monitora():
     client = MongoClient(MONGO_DB_URL)
@@ -153,8 +149,6 @@ client = mqtt.Client(client_id= "data_processor")
 #funções de callback
 client.on_connect = on_connect
 client.on_message = on_message
-
-print(f"\nMonitoradas: {machines_listening}\n")
 
 client.connect("localhost", 1883, 120)
 
