@@ -4,6 +4,7 @@ import threading
 import json
 from datetime import datetime, timedelta
 import time
+from collections import deque
 
 MONGO_DB_URL = "mongodb://localhost:27017"
 MONGO_DB_NAME = "sensors_data"
@@ -14,6 +15,9 @@ threads = []
 machines_listening = {}
 #dicionario para os sensores que dispararam alarme
 sensores_com_alarme = {}
+#buffer media movel
+sensores_buffer = {}
+
 
 def split_string(string, delimiter):
     parts = string.split(delimiter)
@@ -41,6 +45,11 @@ def insert_db(machine_id, sensor_id, timestamp, value):
         "timestamp": timestamp,
         "value": value
     }
+    with threading.Lock():
+        if (machine_id, sensor_id) not in sensores_buffer:
+            sensores_buffer[(machine_id, sensor_id)] = deque(maxlen=100)  # Defina o tamanho máximo do buffer como 100
+
+        sensores_buffer[(machine_id, sensor_id)].append(value)
     try:
         collection.insert_one(doc)
     except Exception as e:
@@ -102,6 +111,30 @@ def on_message(client, userdata, msg):
                 insert_db(machine_id, sensor_id, timestamp, value)
                 machines_listening[machine_id][sensor_id]['timestamp'] = timestamp
 
+def calcular_media_movel():
+    client = MongoClient(MONGO_DB_URL)
+    db = client[MONGO_DB_NAME]
+    collection = db["media_movel"]
+
+    while True:
+        for (machine_id, sensor_id), buffer in sensores_buffer.items():
+            if len(buffer) > 0:
+                media = sum(buffer) / len(buffer)
+                doc = {
+                    "machine_id": machine_id,
+                    "sensor_id": sensor_id,
+                    "media_movel": media,
+                    "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+                }
+                try:
+                    collection.insert_one(doc)
+                except Exception as e:
+                    print(f"Failed to insert doc: {e}")
+
+        time.sleep(5)  # Intervalo de atualização da média móvel
+
+
+
 def monitora():
     client = MongoClient(MONGO_DB_URL)
     db = client[MONGO_DB_NAME]
@@ -129,19 +162,26 @@ def monitora():
                     print(f"Alarme gerado para a máquina {machine_id}, sensor {sensor_id}!")
                 else:
                     print(f"Tempo decorrido para a máquina {machine_id}, sensor {sensor_id}: {elapsed_time}")
+
             else:
                 print(f"Nenhum registro encontrado para a máquina {machine_id}, sensor {sensor_id}.\n")
 
 def monitorar_banco():
     while True:
         monitora()
-        time.sleep(1)  # Intervalo de verificação do banco de dado
+        time.sleep(1)  # Intervalo de verificação do banco de dados
 
 
 # Cria uma nova thread para monitorar o banco de dados e gerar alarmes
 monitor_thread = threading.Thread(target=monitorar_banco)
 monitor_thread.daemon = True  # Define a thread como daemon para encerrar junto com o programa principal
 monitor_thread.start()
+
+# Cria uma nova thread para calcular a media movel dos valores
+media_movel_thread = threading.Thread(target=calcular_media_movel)
+media_movel_thread.daemon = True  
+media_movel_thread.start()
+
 
 # Configuração do cliente MQTT
 client = mqtt.Client(client_id= "data_processor")
